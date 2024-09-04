@@ -18,7 +18,7 @@ A command-line utility for scanning directories with ClamAV, updating virus defi
 
 ### Install prebuilt binaries via shell script (Linux, macOS)
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sandeshgrangdan/antivirus/releases/download/v0.1.0/ssm-tui-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sandeshgrangdan/antivirus/releases/download/v0.1.0/antivirus-installer.sh | sh
 ```
 
 To update, run the same command again.
