@@ -147,7 +147,7 @@ impl Antivirus {
 
     pub fn scan(&mut self) {
 
-        let mut dir = &format!("{}/Downloads/cv",self.home_dir);
+        let mut dir = &self.home_dir;
 
         if self.args.dir != "HOME"{
             dir = &self.args.dir;
