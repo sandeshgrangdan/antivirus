@@ -3,6 +3,8 @@ use std::process::{Command, Stdio};
 use std::io::{self, BufRead};
 use regex::Regex;
 use clap::Parser;
+use std::fs;
+use std::io::Write;
 
 mod linux;
 mod macos;
@@ -35,15 +37,44 @@ fn is_clamav_installed() -> io::Result<bool> {
     Ok(!output.stdout.is_empty())
 }
 
+fn handle_freshclam_copy(path: &str) -> std::io::Result<()>{
+    let sample_path = format!("{}/freshclam.conf.sample",path);
+    let config_path = &format!("{}/freshclam.conf",path);
+    fs::copy(sample_path, config_path)?;
+
+    let config_file = fs::File::open(config_path)?;
+    let reader = io::BufReader::new(config_file);
+
+    let temp_config_path = "/tmp/freshclam_temp.conf";
+    let mut temp_file = fs::File::create(temp_config_path)?;
+
+    for line in reader.lines() {
+        let line = line?;
+        if !line.trim_start().starts_with("Example") {
+            writeln!(temp_file, "{}", line)?;
+        }
+    }
+
+    fs::rename(temp_config_path, config_path)?;
+    Ok(())
+}
+
 fn install_clamav() -> std::io::Result<()> {
     match env::consts::OS {
-        "linux" => linux::install_clamav_linux(),
-        "macos" => macos::install_clamav_macos(),
+        "linux" => {
+            let _ = linux::install_clamav_linux();
+            handle_freshclam_copy("/opt/homebrew/etc/clamav")?
+        },
+        "macos" => {
+            let _ = macos::install_clamav_macos();
+            handle_freshclam_copy("/usr/local/etc/clamav")?
+        }
         _ => {
             eprintln!("Unsupported operating system: {}", env::consts::OS);
             std::process::exit(1);
         }
     }
+    Ok(())
 }
 
 fn run_freshclam() -> io::Result<()> {
@@ -88,6 +119,19 @@ fn run_freshclam() -> io::Result<()> {
         } else {
             eprintln!("Command failed with exit code: {}", output.code().unwrap_or(-1));
             Err(io::Error::new(io::ErrorKind::Other, "Command failed"))
+        }
+    }
+
+    match env::consts::OS {
+        "linux" => {
+            let _ = handle_freshclam_copy("/usr/local/etc/clamav");
+        },
+        "macos" =>{
+            let _ = handle_freshclam_copy("/opt/homebrew/etc/clamav");
+        },
+        _ => {
+            eprintln!("Unsupported operating system to setup freshclam : {}", env::consts::OS);
+            std::process::exit(1);
         }
     }
 
