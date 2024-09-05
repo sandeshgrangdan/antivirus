@@ -52,7 +52,7 @@ antivirus --dir /path/to/scan --update Yes --notify "Google Chat"
 ```
 
 ### Environment Variables
-- **ANTIVIRUS_WEBHOOK_URLS**: The environment variable that stores the webhook URLs used for sending notifications. Ensure that this variable is set to the correct URL(s) before running the utility `--notify "Google Chat"` option.
+- **ANTIVIRUS_WEBHOOK_URL**: The environment variable that stores the webhook URLs used for sending notifications. Ensure that this variable is set to the correct URL(s) before running the utility `--notify "Google Chat"` option.
 
 ## Contributing
 Contributions are welcome! Please submit a pull request or open an issue to discuss any changes or improvements.
