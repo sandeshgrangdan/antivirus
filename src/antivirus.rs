@@ -2,7 +2,6 @@ use std::{env, thread};
 use std::process::{Command, Stdio};
 use std::io::{self, BufRead};
 use regex::Regex;
-use reqwest::Client;
 use clap::Parser;
 
 mod linux;
@@ -19,15 +18,11 @@ pub struct Args {
     /// Option to update the ClamAV virus database before scanning. Defaults to "Yes".
     #[arg(short, long, default_value_t = String::from("Yes"))]
     pub update: String,
-
-    /// The notification is sent in "Google Chat" using the URL provided in the `ANTIVIRUS_WEBHOOK_URLS` environment variable.
-    #[arg(short, long, default_value_t = String::from("Google Chat"))]
-    pub notify: String,
 }
 
 pub struct Antivirus {
     home_dir: String,
-    webhook_url: String,
+    google_chat_url: String,
     summary: String,
     args: Args
 }
@@ -96,7 +91,7 @@ fn run_freshclam() -> io::Result<()> {
         }
     }
 
-    if let Err(e) = execute_command("freshclam", &[]) {
+    if let Err(e) = execute_command("freshclam", &[""]) {
         eprintln!("Failed to run freshclam: {}", e);
 
         println!("Retrying with sudo...");
@@ -131,16 +126,15 @@ impl Antivirus {
             std::process::exit(1);
         }
 
-        let webhook_url = if args.notify == "Google Chat"{
-            env::var("ANTIVIRUS_WEBHOOK_URL").expect("Failed to get ANTIVIRUS_WEBHOOK_URL environment variables.")
-        }else{
-            String::new()
+        let google_chat_url = match env::var("ANTIVIRUS_GOOGLE_CHAT_URL=") {
+            Ok(url) => url,
+            _ => String::new()
         };
 
         Self {
             home_dir : env::var("HOME").expect("Failed to get HOME directory"),
             summary: String::new(),
-            webhook_url,
+            google_chat_url,
             args
         }
     }
@@ -161,8 +155,6 @@ impl Antivirus {
             "--max-scansize=4095M",
             "--max-files=1000000",
             "--max-recursion=512",
-            "--max-embeddedpe=256M",
-            "--max-htmlnormalize=256M",
             "--max-htmlnotags=256M",
             "--max-scriptnormalize=256M",
             "--max-ziptypercg=16M",
@@ -213,15 +205,26 @@ impl Antivirus {
     }
 
     pub async fn notify(&self){
-        if self.args.notify == "Google Chat"{
-            let client = Client::new();
-            let response = client.post(&self.webhook_url)
-            .json(&serde_json::json!({ "text": self.summary }))
-            .send()
-            .await
-            .expect("Failed to send request");
+        if self.google_chat_url != "" {
 
-            println!("Message sent to Google Chat with status: {}", response.status());
+            let message = format!(r#"{{"text": "{}"}}"#, self.summary);
+
+            let output = Command::new("curl")
+                .arg("-X")
+                .arg("POST")
+                .arg("-H")
+                .arg("Content-Type: application/json")
+                .arg("-d")
+                .arg(message)
+                .arg(&self.google_chat_url)
+                .output()
+                .expect("Failed to execute curl");
+
+            if output.status.success() {
+                println!("Message sent successfully to google chat!");
+            } else {
+                println!("Failed to send message.");
+            }
         }
     }
 
