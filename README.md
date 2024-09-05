@@ -29,11 +29,11 @@ antivirus-update
 ## Usage
 
 ```bash
-$ ssm-tui
+$ antivirus
 ```
 You can customize the behavior of the utility using the following command-line arguments:
 ```
-$ ssm-tui -h
+$ antivirus -h
 A command-line utility for scanning directories with ClamAV, updating virus definitions, and sending notifications.
 
 Usage: antivirus [OPTIONS]
@@ -52,7 +52,7 @@ antivirus --dir /path/to/scan --update Yes --notify "Google Chat"
 ```
 
 ### Environment Variables
-- **ANTIVIRUS_WEBHOOK_URLS**:: The environment variable that stores the webhook URLs used for sending notifications. Ensure that this variable is set to the correct URL(s) before running the utility `--notify "Google Chat"` option.
+- **ANTIVIRUS_WEBHOOK_URLS**: The environment variable that stores the webhook URLs used for sending notifications. Ensure that this variable is set to the correct URL(s) before running the utility `--notify "Google Chat"` option.
 
 ## Contributing
 Contributions are welcome! Please submit a pull request or open an issue to discuss any changes or improvements.
