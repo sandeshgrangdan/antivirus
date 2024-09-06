@@ -8,5 +8,7 @@ async fn main() {
 
     app.scan();
     app.notify().await;
+
+    app.save_infected_file_on_temp();
 }
 

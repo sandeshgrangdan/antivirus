@@ -17,10 +17,10 @@ A command-line utility for scanning directories with ClamAV, updating virus defi
 
 ### *Method 2*: Install prebuilt binaries via shell script (Linux, macOS)
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sandeshgrangdan/antivirus/releases/download/v0.1.2/antivirus-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sandeshgrangdan/antivirus/releases/download/v0.1.3/antivirus-installer.sh | sh
 ```
 
-### *Method 3*:
+### *SETUP PATH*:
 To add $HOME/.cargo/bin to your PATH, either restart your shell or run:
 ```bash
     source $HOME/.cargo/env (sh, bash, zsh)
@@ -40,7 +40,6 @@ $ antivirus
 ```
 >You need to first setup freshclam
 - *(Linux)*: Create /usr/local/etc/clamav/freshclam.conf from /usr/local/etc/clamav/freshclam.conf.sample.
-- *(MacOS)*: Create /opt/homebrew/etc/clamav/freshclam.conf from /opt/homebrew/etc/clamav/freshclam.conf.sample (For Mac).
 - Remove or comment-out the Example line from freshclam.conf
 - Run freshclam to download the latest malware definitions.
 ```

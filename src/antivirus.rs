@@ -1,9 +1,10 @@
 use std::{env, thread};
 use std::process::{Command, Stdio};
 use std::io::{self, BufRead};
+use rand::Rng;
 use regex::Regex;
 use clap::Parser;
-use std::fs;
+use std::fs::{self, File};
 use std::io::Write;
 
 mod linux;
@@ -26,7 +27,9 @@ pub struct Antivirus {
     home_dir: String,
     google_chat_url: String,
     summary: String,
-    args: Args
+    infected_files: String,
+    args: Args,
+    tmp_file : String
 }
 
 fn is_clamav_installed() -> io::Result<bool> {
@@ -35,6 +38,14 @@ fn is_clamav_installed() -> io::Result<bool> {
         .output()?;
 
     Ok(!output.stdout.is_empty())
+}
+
+fn generate_random_file_name() -> String {
+    let mut rng = rand::thread_rng();
+    let random_string: String = (0..10)
+        .map(|_| rng.sample(rand::distributions::Alphanumeric) as char)
+        .collect();
+    format!("/tmp/{}.txt", random_string)
 }
 
 fn handle_freshclam_copy(path: &str) -> std::io::Result<()>{
@@ -178,6 +189,8 @@ impl Antivirus {
         Self {
             home_dir : env::var("HOME").expect("Failed to get HOME directory"),
             summary: String::new(),
+            infected_files: String::new(),
+            tmp_file: generate_random_file_name(),
             google_chat_url,
             args
         }
@@ -195,8 +208,8 @@ impl Antivirus {
             "--archive-verbose",
             "--alert-exceeds-max=yes",
             "--alert-encrypted=yes",
-            "--max-filesize=4095M",
-            "--max-scansize=4095M",
+            "--max-filesize=10000M",
+            "--max-scansize=10000M",
             "--max-files=1000000",
             "--max-recursion=512",
             "--max-htmlnotags=256M",
@@ -212,6 +225,7 @@ impl Antivirus {
         .expect("Failed to execute clamscan");
 
         let regex_patterns = vec![
+            Regex::new(r": FOUND$").unwrap(),
             Regex::new(r"^----------- SCAN SUMMARY -----------").unwrap(),
             Regex::new(r"^Known viruses:").unwrap(),
             Regex::new(r"^Engine version:").unwrap(),
@@ -225,6 +239,10 @@ impl Antivirus {
             Regex::new(r"^End Date:").unwrap(),
         ];
 
+        let infected_regex_patterns = vec![
+            Regex::new(r": FOUND$").unwrap(),
+        ];
+
         self.summary.push_str(&format!("{}\n\n", self.home_dir));
         
         if let Some(stdout) = child.stdout.take() {
@@ -235,6 +253,9 @@ impl Antivirus {
                         println!("{}",line);
                         if regex_patterns.iter().any(|regex| regex.is_match(&line)) {
                             self.summary.push_str(&format!("{}\n", line));
+                        }
+                        if infected_regex_patterns.iter().any(|regex| regex.is_match(&line)) {
+                            self.infected_files.push_str(&format!("{}\n", line));
                         }
                     },
                     Err(err) => eprintln!("Error reading line: {}", err),
@@ -248,37 +269,44 @@ impl Antivirus {
 
     }
 
-    pub async fn notify(&self){
+    pub async fn notify(&mut self){
         if self.google_chat_url != "" {
-
-            let message = format!(r#"{{"text": "{}"}}"#, self.summary);
-
-            let output = Command::new("curl")
-                .arg("-X")
-                .arg("POST")
-                .arg("-H")
-                .arg("Content-Type: application/json")
-                .arg("-d")
-                .arg(message)
-                .arg(&self.google_chat_url)
-                .output()
-                .expect("Failed to execute curl");
-
-            if output.status.success() {
-                println!("Message sent successfully to google chat!");
-            } else {
-                println!("Failed to send message.");
+            self.google_chat(&self.summary);
+            if self.infected_files != "" {
+                self.infected_files.push_str(&format!("\nResult Output: {}\n", self.tmp_file));
+                self.google_chat(&self.infected_files);
             }
         }
     }
 
-    // fn generate_random_file_name() -> String {
-    //     let mut rng = rand::thread_rng();
-    //     let random_string: String = (0..10)
-    //         .map(|_| rng.sample(rand::distributions::Alphanumeric) as char)
-    //         .collect();
-    //     format!("/tmp/{}.txt", random_string)
-    // }
+    fn google_chat(&self,message: &String){
+        let send_message = format!(r#"{{"text": "{}"}}"#, message);
 
+        let output = Command::new("curl")
+            .arg("-X")
+            .arg("POST")
+            .arg("-H")
+            .arg("Content-Type: application/json")
+            .arg("-d")
+            .arg(send_message)
+            .arg(&self.google_chat_url)
+            .output()
+            .expect("Failed to execute curl");
+
+        if output.status.success() {
+            println!("Message sent successfully to google chat!");
+        } else {
+            println!("Failed to send message.");
+        }
+    }
+
+    pub fn save_infected_file_on_temp(&self){
+        let mut output = File::create(&self.tmp_file).unwrap();
+
+        write!(output, "{}", self.summary).unwrap();
+        if self.infected_files != "" {
+            write!(output, "{}", self.infected_files).unwrap();
+        }
+    }
 
 }
