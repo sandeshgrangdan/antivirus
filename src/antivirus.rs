@@ -225,7 +225,6 @@ impl Antivirus {
         .expect("Failed to execute clamscan");
 
         let regex_patterns = vec![
-            Regex::new(r": FOUND$").unwrap(),
             Regex::new(r"^----------- SCAN SUMMARY -----------").unwrap(),
             Regex::new(r"^Known viruses:").unwrap(),
             Regex::new(r"^Engine version:").unwrap(),
@@ -240,10 +239,13 @@ impl Antivirus {
         ];
 
         let infected_regex_patterns = vec![
-            Regex::new(r": FOUND$").unwrap(),
+            Regex::new(r" FOUND$").unwrap(),
         ];
 
-        self.summary.push_str(&format!("{}\n\n", self.home_dir));
+        self.summary.push_str(&format!("_Scanned directory_: `{}`\n", dir));
+        self.summary.push_str(&format!("_Result Output_: `{}`\n\n", self.tmp_file));
+
+        let mut found_infected = false;
         
         if let Some(stdout) = child.stdout.take() {
             let reader = io::BufReader::new(stdout);
@@ -255,7 +257,13 @@ impl Antivirus {
                             self.summary.push_str(&format!("{}\n", line));
                         }
                         if infected_regex_patterns.iter().any(|regex| regex.is_match(&line)) {
-                            self.infected_files.push_str(&format!("{}\n", line));
+                            if found_infected == false {
+                                found_infected = true;
+                                self.infected_files.push_str("===================================================\n");
+                                self.infected_files.push_str("                           *Infected File Summary*\n");
+                                self.infected_files.push_str("===================================================\n\n");
+                            }
+                            self.infected_files.push_str(&format!("- {}\n", line));
                         }
                     },
                     Err(err) => eprintln!("Error reading line: {}", err),
@@ -264,6 +272,11 @@ impl Antivirus {
         }
 
         let status = child.wait().expect("Failed to wait on child");
+        if self.infected_files != "" {
+            self.infected_files.push_str("\n_Action Required:_\n");
+            self.infected_files.push_str("- Review the file and determine if it needs further action.\n");
+            self.infected_files.push_str("- Consider running additional scans or consulting with security team.\n");
+        }
 
         println!("Scan Process exited with: {}", status);
 
@@ -273,8 +286,7 @@ impl Antivirus {
         if self.google_chat_url != "" {
             self.google_chat(&self.summary);
             if self.infected_files != "" {
-                self.infected_files.push_str(&format!("\nResult Output: {}\n", self.tmp_file));
-                self.google_chat(&self.infected_files);
+                self.google_chat(&format!("{}",&self.infected_files));
             }
         }
     }
