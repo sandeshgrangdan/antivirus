@@ -9,6 +9,7 @@ use std::io::Write;
 
 mod linux;
 mod macos;
+mod windows;
 
 /// Command-line arguments for the ClamAV scanning utility.
 #[derive(Parser, Debug)]
@@ -80,6 +81,10 @@ fn install_clamav() -> std::io::Result<()> {
             let _ = macos::install_clamav_macos();
             handle_freshclam_copy("/usr/local/etc/clamav")?
         }
+        "windows" => {
+                    let _ = windows::install_clamav_windows();
+                    handle_freshclam_copy(r"C:\ProgramData\.clamav")?
+                }
         _ => {
             eprintln!("Unsupported operating system: {}", env::consts::OS);
             std::process::exit(1);
@@ -140,6 +145,9 @@ fn run_freshclam() -> io::Result<()> {
         "macos" =>{
             let _ = handle_freshclam_copy("/opt/homebrew/etc/clamav");
         },
+        "windows" =>{
+            let _ =  handle_freshclam_copy(r"C:\ProgramData\.clamav");
+                },
         _ => {
             eprintln!("Unsupported operating system to setup freshclam : {}", env::consts::OS);
             std::process::exit(1);
@@ -169,7 +177,7 @@ impl Antivirus {
             println!("ClamAV is already installed.\n");
         } else {
             println!("ClamAV is not installed. Installing ClamAV...");
-    
+
             if let Err(e) = install_clamav() {
                 eprintln!("Error installing ClamAV: {}", e);
                 std::process::exit(1);
@@ -244,7 +252,7 @@ impl Antivirus {
         ];
 
         self.summary.push_str(&format!("{}\n\n", self.home_dir));
-        
+
         if let Some(stdout) = child.stdout.take() {
             let reader = io::BufReader::new(stdout);
             for line in reader.lines() {
@@ -264,7 +272,7 @@ impl Antivirus {
         }
 
         let status = child.wait().expect("Failed to wait on child");
-
+f
         println!("Scan Process exited with: {}", status);
 
     }
