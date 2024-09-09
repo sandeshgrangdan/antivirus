@@ -57,9 +57,7 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
 
     // Path to the default freshclam.conf.example file
     let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf.sample";
-    let freshclam_conf_destination = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf";
-//     let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
-
+    let freshclam_conf_destination = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\freshclam.conf";
 
     // Copy and rename the freshclam.conf file to the configuration directory
     fs::copy(freshclam_conf_source, &freshclam_conf_destination)?;
@@ -70,7 +68,7 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
     let reader = io::BufReader::new(config_file);
 
     // Use a Windows-compatible temp file path
-    let temp_config_path = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam_temp.conf"; // Ensure this directory exists
+    let temp_config_path = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\freshclam_temp.conf"; // Ensure this directory exists
 
     // Create a temporary file for the updated config
     let mut temp_file = fs::File::create(temp_config_path)?;
