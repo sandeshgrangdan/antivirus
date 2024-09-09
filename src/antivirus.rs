@@ -5,9 +5,7 @@ use rand::Rng;
 use regex::Regex;
 use clap::Parser;
 use std::fs::{self, File};
-use std::io::Write;
 use std::path::Path;
-use std::fs;
 
 mod linux;
 mod macos;
@@ -86,9 +84,28 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
     }
 
     // Rename the temporary file to overwrite the original config file
-    fs::rename(temp_config_path, freshclam_conf_destination)?;
+        fs::rename(&temp_config_path, &freshclam_conf_destination)?;
+        println!("Processed and renamed freshclam.conf at {}", config_dir);
 
-    println!("Renamed freshclam.conf to {}", config_dir);
+        // Ensure the freshclam.conf file has the correct permissions for ClamAV to read
+        let freshclam_permissions = fs::metadata(&freshclam_conf_destination)?.permissions();
+        println!("freshclam.conf permissions: {:?}", freshclam_permissions);
+
+        // Run freshclam to check for issues
+        let freshclam_output = Command::new("freshclam")
+            .arg("--config-file")
+            .arg(&freshclam_conf_destination)
+            .output()?;
+
+        // Print the output and error message (if any)
+        if freshclam_output.status.success() {
+            println!("Freshclam ran successfully.");
+        } else {
+            eprintln!(
+                "Freshclam failed: {}",
+                String::from_utf8_lossy(&freshclam_output.stderr)
+            );
+        }
 
     Ok(())
 }
