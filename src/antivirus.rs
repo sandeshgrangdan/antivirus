@@ -1,12 +1,13 @@
 use std::{env, thread};
 use std::process::{Command, Stdio};
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use rand::Rng;
 use regex::Regex;
 use clap::Parser;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
+use std::fs;
 
 mod linux;
 mod macos;
@@ -58,12 +59,36 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
 
     // Path to the default freshclam.conf.example file
     let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf.sample";
-    let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
+    let freshclam_conf_destination = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf";
+//     let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
+
 
     // Copy and rename the freshclam.conf file to the configuration directory
     fs::copy(freshclam_conf_source, &freshclam_conf_destination)?;
 
     println!("Copied freshclam.conf to {}", config_dir);
+
+    let config_file = fs::File::open(freshclam_conf_destination)?;
+    let reader = io::BufReader::new(config_file);
+
+    // Use a Windows-compatible temp file path
+    let temp_config_path = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam_temp.conf"; // Ensure this directory exists
+
+    // Create a temporary file for the updated config
+    let mut temp_file = fs::File::create(temp_config_path)?;
+
+    // Process each line, filtering out lines that start with "Example"
+    for line in reader.lines() {
+        let line = line?;
+        if !line.trim_start().starts_with("Example") {
+            writeln!(temp_file, "{}", line)?;
+        }
+    }
+
+    // Rename the temporary file to overwrite the original config file
+    fs::rename(temp_config_path, freshclam_conf_destination)?;
+
+    println!("Renamed freshclam.conf to {}", config_dir);
 
     Ok(())
 }
