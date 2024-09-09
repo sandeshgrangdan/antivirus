@@ -144,7 +144,7 @@ fn install_clamav() -> std::io::Result<()> {
         }
         "windows" => {
                     let _ = windows::install_clamav_windows();
-                    handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")??
+                    handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")?
                 }
         _ => {
             eprintln!("Unsupported operating system: {}", env::consts::OS);
