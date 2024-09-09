@@ -55,22 +55,25 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
         fs::create_dir_all(config_dir)?;
     }
 
-    let config_dir = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64";
+    // Path to the default freshclam.conf.example file
+    let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf.sample";
+    let freshclam_conf_destination = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf";
+//     let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
 
-    // Paths for freshclam
-    let freshclam_conf_source = format!("{}\\conf_examples\\freshclam.conf.sample", config_dir);
-    let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
 
     // Copy and rename the freshclam.conf file to the configuration directory
-    fs::copy(&freshclam_conf_source, &freshclam_conf_destination)?;
-    println!("Copied freshclam.conf to {}", freshclam_conf_destination);
+    fs::copy(freshclam_conf_source, &freshclam_conf_destination)?;
 
-    let config_file = fs::File::open(&freshclam_conf_destination)?;
+    println!("Copied freshclam.conf to {}", config_dir);
+
+    let config_file = fs::File::open(freshclam_conf_destination)?;
     let reader = io::BufReader::new(config_file);
 
-    // Temporary file for freshclam
-    let temp_config_path = format!("{}\\freshclam_temp.conf", config_dir);
-    let mut temp_file = fs::File::create(&temp_config_path)?;
+    // Use a Windows-compatible temp file path
+    let temp_config_path = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam_temp.conf"; // Ensure this directory exists
+
+    // Create a temporary file for the updated config
+    let mut temp_file = fs::File::create(temp_config_path)?;
 
     // Process each line, filtering out lines that start with "Example"
     for line in reader.lines() {
@@ -80,75 +83,29 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
         }
     }
 
-    // Rename the temporary file to overwrite the original freshclam.conf
-    fs::rename(&temp_config_path, &freshclam_conf_destination)?;
-    println!("Processed and renamed freshclam.conf at {}", freshclam_conf_destination);
+    // Rename the temporary file to overwrite the original config file
+        fs::rename(&temp_config_path, &freshclam_conf_destination)?;
+        println!("Processed and renamed freshclam.conf at {}", config_dir);
 
-    // Ensure the freshclam.conf file has the correct permissions for ClamAV to read
-    let freshclam_permissions = fs::metadata(&freshclam_conf_destination)?.permissions();
-    println!("freshclam.conf permissions: {:?}", freshclam_permissions);
+        // Ensure the freshclam.conf file has the correct permissions for ClamAV to read
+        let freshclam_permissions = fs::metadata(&freshclam_conf_destination)?.permissions();
+        println!("freshclam.conf permissions: {:?}", freshclam_permissions);
 
-    // Run freshclam to check for issues
-    let freshclam_output = Command::new("freshclam")
-        .arg("--config-file")
-        .arg(&freshclam_conf_destination)
-        .output()?;
+        // Run freshclam to check for issues
+        let freshclam_output = Command::new("freshclam")
+            .arg("--config-file")
+            .arg(&freshclam_conf_destination)
+            .output()?;
 
-    if freshclam_output.status.success() {
-        println!("Freshclam ran successfully.");
-    } else {
-        eprintln!(
-            "Freshclam failed: {}",
-            String::from_utf8_lossy(&freshclam_output.stderr)
-        );
-    }
-
-
-    // Paths for clamd
-    let clamd_conf_source = format!("{}\\conf_examples\\clamd.conf.sample", config_dir);
-    let clamd_conf_destination = format!("{}\\clamd.conf", config_dir);
-
-    // Copy and rename the clamd.conf file to the configuration directory
-    fs::copy(&clamd_conf_source, &clamd_conf_destination)?;
-    println!("Copied clamd.conf to {}", clamd_conf_destination);
-
-    let config_file = fs::File::open(&clamd_conf_destination)?;
-    let reader = io::BufReader::new(config_file);
-
-    // Temporary file for clamd
-    let temp_clamd_config_path = format!("{}\\clamd_temp.conf", config_dir);
-    let mut temp_clamd_file = fs::File::create(&temp_clamd_config_path)?;
-
-    // Process each line, filtering out lines that start with "Example"
-    for line in reader.lines() {
-        let line = line?;
-        if !line.trim_start().starts_with("Example") {
-            writeln!(temp_clamd_file, "{}", line)?;
+        // Print the output and error message (if any)
+        if freshclam_output.status.success() {
+            println!("Freshclam ran successfully.");
+        } else {
+            eprintln!(
+                "Freshclam failed: {}",
+                String::from_utf8_lossy(&freshclam_output.stderr)
+            );
         }
-    }
-
-    // Rename the temporary file to overwrite the original clamd.conf
-    fs::rename(&temp_clamd_config_path, &clamd_conf_destination)?;
-    println!("Processed and renamed clamd.conf at {}", clamd_conf_destination);
-
-    // Ensure the clamd.conf file has the correct permissions for ClamAV to read
-    let clamd_permissions = fs::metadata(&clamd_conf_destination)?.permissions();
-    println!("clamd.conf permissions: {:?}", clamd_permissions);
-
-    // Run clamd to check for issues
-    let clamd_output = Command::new("clamd")
-        .arg("--config-file")
-        .arg(&clamd_conf_destination)
-        .output()?;
-
-    if clamd_output.status.success() {
-        println!("Clamd ran successfully.");
-    } else {
-        eprintln!(
-            "Clamd failed: {}",
-            String::from_utf8_lossy(&clamd_output.stderr)
-        );
-    }
 
     Ok(())
 }
