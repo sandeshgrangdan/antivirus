@@ -49,6 +49,24 @@ fn generate_random_file_name() -> String {
     format!("/tmp/{}.txt", random_string)
 }
 
+pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
+    // Ensure the configuration directory exists
+    if !Path::new(config_dir).exists() {
+        fs::create_dir_all(config_dir)?;
+    }
+
+    // Path to the default freshclam.conf.example file
+    let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\conf_examples\freshclam.conf.example";
+    let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
+
+    // Copy and rename the freshclam.conf file to the configuration directory
+    fs::copy(freshclam_conf_source, &freshclam_conf_destination)?;
+
+    println!("Copied freshclam.conf to {}", config_dir);
+
+    Ok(())
+}
+
 fn handle_freshclam_copy(path: &str) -> std::io::Result<()>{
     let sample_path = format!("{}/freshclam.conf.sample",path);
     let config_path = &format!("{}/freshclam.conf",path);
@@ -83,7 +101,7 @@ fn install_clamav() -> std::io::Result<()> {
         }
         "windows" => {
                     let _ = windows::install_clamav_windows();
-                    handle_freshclam_copy(r"C:\ProgramData\.clamav")?
+                    handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")??
                 }
         _ => {
             eprintln!("Unsupported operating system: {}", env::consts::OS);
@@ -146,7 +164,7 @@ fn run_freshclam() -> io::Result<()> {
             let _ = handle_freshclam_copy("/opt/homebrew/etc/clamav");
         },
         "windows" =>{
-            let _ =  handle_freshclam_copy(r"C:\ProgramData\.clamav");
+            let _ =  handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")?;
                 },
         _ => {
             eprintln!("Unsupported operating system to setup freshclam : {}", env::consts::OS);
@@ -272,9 +290,7 @@ impl Antivirus {
         }
 
         let status = child.wait().expect("Failed to wait on child");
-f
         println!("Scan Process exited with: {}", status);
-
     }
 
     pub async fn notify(&mut self){
