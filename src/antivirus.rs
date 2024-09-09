@@ -1,14 +1,15 @@
 use std::{env, thread};
 use std::process::{Command, Stdio};
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use rand::Rng;
 use regex::Regex;
 use clap::Parser;
 use std::fs::{self, File};
-use std::io::Write;
+use std::path::Path;
 
 mod linux;
 mod macos;
+mod windows;
 
 /// Command-line arguments for the ClamAV scanning utility.
 #[derive(Parser, Debug)]
@@ -48,6 +49,67 @@ fn generate_random_file_name() -> String {
     format!("/tmp/{}.txt", random_string)
 }
 
+pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
+    // Ensure the configuration directory exists
+    if !Path::new(config_dir).exists() {
+        fs::create_dir_all(config_dir)?;
+    }
+
+    // Path to the default freshclam.conf.example file
+    let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf.sample";
+    let freshclam_conf_destination = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf";
+//     let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
+
+
+    // Copy and rename the freshclam.conf file to the configuration directory
+    fs::copy(freshclam_conf_source, &freshclam_conf_destination)?;
+
+    println!("Copied freshclam.conf to {}", config_dir);
+
+    let config_file = fs::File::open(freshclam_conf_destination)?;
+    let reader = io::BufReader::new(config_file);
+
+    // Use a Windows-compatible temp file path
+    let temp_config_path = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam_temp.conf"; // Ensure this directory exists
+
+    // Create a temporary file for the updated config
+    let mut temp_file = fs::File::create(temp_config_path)?;
+
+    // Process each line, filtering out lines that start with "Example"
+    for line in reader.lines() {
+        let line = line?;
+        if !line.trim_start().starts_with("Example") {
+            writeln!(temp_file, "{}", line)?;
+        }
+    }
+
+    // Rename the temporary file to overwrite the original config file
+        fs::rename(&temp_config_path, &freshclam_conf_destination)?;
+        println!("Processed and renamed freshclam.conf at {}", config_dir);
+
+        // Ensure the freshclam.conf file has the correct permissions for ClamAV to read
+        let freshclam_permissions = fs::metadata(&freshclam_conf_destination)?.permissions();
+        println!("freshclam.conf permissions: {:?}", freshclam_permissions);
+
+        // Run freshclam to check for issues
+        let freshclam_output = Command::new("freshclam")
+            .arg("--config-file")
+            .arg(&freshclam_conf_destination)
+            .output()?;
+
+        // Print the output and error message (if any)
+        if freshclam_output.status.success() {
+            println!("Freshclam ran successfully.");
+        } else {
+            eprintln!(
+                "Freshclam failed: {}",
+                String::from_utf8_lossy(&freshclam_output.stderr)
+            );
+        }
+
+    Ok(())
+}
+
 fn handle_freshclam_copy(path: &str) -> std::io::Result<()>{
     let sample_path = format!("{}/freshclam.conf.sample",path);
     let config_path = &format!("{}/freshclam.conf",path);
@@ -80,6 +142,10 @@ fn install_clamav() -> std::io::Result<()> {
             let _ = macos::install_clamav_macos();
             handle_freshclam_copy("/usr/local/etc/clamav")?
         }
+        "windows" => {
+                    let _ = windows::install_clamav_windows();
+                    handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")?
+                }
         _ => {
             eprintln!("Unsupported operating system: {}", env::consts::OS);
             std::process::exit(1);
@@ -140,6 +206,9 @@ fn run_freshclam() -> io::Result<()> {
         "macos" =>{
             let _ = handle_freshclam_copy("/opt/homebrew/etc/clamav");
         },
+        "windows" =>{
+            let _ =  handle_freshclam_copy_windows("C:\\ProgramData\\.clamav")?;
+                },
         _ => {
             eprintln!("Unsupported operating system to setup freshclam : {}", env::consts::OS);
             std::process::exit(1);
@@ -169,7 +238,7 @@ impl Antivirus {
             println!("ClamAV is already installed.\n");
         } else {
             println!("ClamAV is not installed. Installing ClamAV...");
-    
+
             if let Err(e) = install_clamav() {
                 eprintln!("Error installing ClamAV: {}", e);
                 std::process::exit(1);
