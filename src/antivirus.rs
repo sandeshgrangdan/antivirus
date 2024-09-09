@@ -6,6 +6,7 @@ use regex::Regex;
 use clap::Parser;
 use std::fs::{self, File};
 use std::io::Write;
+use std::path::Path;
 
 mod linux;
 mod macos;
@@ -56,7 +57,7 @@ pub fn handle_freshclam_copy_windows(config_dir: &str) -> io::Result<()> {
     }
 
     // Path to the default freshclam.conf.example file
-    let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\conf_examples\freshclam.conf.example";
+    let freshclam_conf_source = r"C:\ProgramData\chocolatey\lib\clamav\tools\clamav-1.4.1.win.x64\conf_examples\freshclam.conf.sample";
     let freshclam_conf_destination = format!("{}\\freshclam.conf", config_dir);
 
     // Copy and rename the freshclam.conf file to the configuration directory
